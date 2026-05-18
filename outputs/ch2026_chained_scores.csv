@@ -1,0 +1,8 @@
+target,stage,model_blend,logloss
+S1,S,lightgbm+xgboost,0.5923897285384886
+S2,S,lightgbm+xgboost,0.6182407743017958
+S3,S,lightgbm+xgboost,0.5675440718822717
+S4,S,lightgbm+xgboost,0.6715302369713395
+Q1,Q,lightgbm+xgboost,0.7012976623598197
+Q2,Q,lightgbm+xgboost,0.6944143232963211
+Q3,Q,lightgbm+xgboost,0.6903824364452841
