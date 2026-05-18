@@ -14,10 +14,12 @@ from pathlib import Path
 import pandas as pd
 
 from src.ch2026_chained import run_chained_logloss_pipeline
+from src.ch2026_chained import run_xgb_variant_experiments
 from src.ch2026_features import KEY_COLUMNS, TARGET_COLUMNS, build_sensor_features, make_model_frame, prepare_feature_matrices
 from src.ch2026_experiments import dependency_status, run_f1_experiments
 from src.ch2026_logloss import run_logloss_experiments
 from src.ch2026_modeling import cross_validate, select_submission_predictions
+from src.ch2026_sequence import run_lstm_sequence_pipeline
 
 
 def _write_submission(sample: pd.DataFrame, predictions: pd.DataFrame, path: Path, as_int: bool = True) -> pd.DataFrame:
@@ -46,6 +48,20 @@ def run_pipeline(data_dir: Path, output_dir: Path, metric: str = "f1", install_c
 
     train = pd.read_csv(train_path)
     sample = pd.read_csv(sample_path)
+
+    if metric == "xgb-variants":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        scores = run_xgb_variant_experiments(data_dir, output_dir)
+        print(scores.groupby("variant")["logloss"].mean().sort_values().to_string())
+        return
+
+    if metric == "lstm":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        _, scores = run_lstm_sequence_pipeline(data_dir, output_dir)
+        print(scores.to_string(index=False))
+        print(f"Wrote {output_dir / 'ch2026_submission_lstm.csv'}")
+        return
+
     sensor_features = build_sensor_features(items_dir)
     train_frame, sample_frame = make_model_frame(train, sample, sensor_features)
     train_x, sample_x = prepare_feature_matrices(train_frame, sample_frame)

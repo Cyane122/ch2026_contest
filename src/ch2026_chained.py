@@ -5,11 +5,13 @@
 #
 # Functions
 #   - run_chained_logloss_pipeline(data_dir: Path, output_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame] : Train chained models and write predictions.
+#   - run_xgb_variant_experiments(data_dir: Path, output_dir: Path) -> pd.DataFrame : Generate XGBoost-heavy chained variants.
 # ================================
 
 from __future__ import annotations
 
 import ast
+import os
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -21,6 +23,10 @@ from sklearn.metrics import log_loss
 from sklearn.preprocessing import LabelEncoder
 
 from src.ch2026_features import KEY_COLUMNS, TARGET_COLUMNS
+
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
 
 
 def _flatten_hr_row(value: object) -> float:
@@ -195,7 +201,7 @@ def _prepare_chained_frames(
     return train, sample, train_frame, sample_frame, stage1_features, stage2_features
 
 
-def _make_model_pair(random_state: int) -> list[tuple[str, object, float]]:
+def _make_model_pair(random_state: int, model_mode: str = "blend") -> list[tuple[str, object, float]]:
     """Return the model blend used for each fold."""
 
     lgbm = LGBMClassifier(
@@ -209,8 +215,12 @@ def _make_model_pair(random_state: int) -> list[tuple[str, object, float]]:
         reg_alpha=1.0,
         reg_lambda=1.0,
         random_state=random_state,
+        n_jobs=1,
         verbose=-1,
     )
+    if model_mode == "lgbm":
+        return [("lightgbm", lgbm, 1.0)]
+
     if find_spec("xgboost") is not None:
         from xgboost import XGBClassifier
 
@@ -225,7 +235,14 @@ def _make_model_pair(random_state: int) -> list[tuple[str, object, float]]:
             random_state=random_state,
             eval_metric="logloss",
             enable_categorical=False,
+            n_jobs=1,
         )
+        if model_mode == "xgb":
+            return [("xgboost", secondary, 1.0)]
+        if model_mode == "lgbm_xgb_50_50":
+            return [("lightgbm", lgbm, 0.5), ("xgboost", secondary, 0.5)]
+        if model_mode == "lgbm_xgb_30_70":
+            return [("lightgbm", lgbm, 0.3), ("xgboost", secondary, 0.7)]
         return [("lightgbm", lgbm, 0.7), ("xgboost", secondary, 0.3)]
 
     secondary = ExtraTreesClassifier(
@@ -235,6 +252,8 @@ def _make_model_pair(random_state: int) -> list[tuple[str, object, float]]:
         random_state=random_state,
         n_jobs=1,
     )
+    if model_mode == "extra_trees":
+        return [("extra_trees", secondary, 1.0)]
     return [("lightgbm", lgbm, 0.7), ("extra_trees", secondary, 0.3)]
 
 
@@ -244,13 +263,14 @@ def _fit_predict_blend(
     valid_x: pd.DataFrame,
     test_x: pd.DataFrame,
     random_state: int,
+    model_mode: str = "blend",
 ) -> tuple[np.ndarray, np.ndarray, str]:
     """Fit one fold blend and return validation/test probabilities."""
 
     valid_probability = np.zeros(len(valid_x), dtype=float)
     test_probability = np.zeros(len(test_x), dtype=float)
     model_names = []
-    for model_name, model, weight in _make_model_pair(random_state):
+    for model_name, model, weight in _make_model_pair(random_state, model_mode):
         model.fit(train_x, train_y)
         valid_probability += weight * model.predict_proba(valid_x)[:, 1]
         test_probability += weight * model.predict_proba(test_x)[:, 1]
@@ -258,13 +278,26 @@ def _fit_predict_blend(
     return valid_probability, test_probability, "+".join(model_names)
 
 
-def run_chained_logloss_pipeline(data_dir: Path, output_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+def run_chained_logloss_pipeline(
+    data_dir: Path,
+    output_dir: Path,
+    output_name: str = "ch2026_submission_chained.csv",
+    score_name: str = "ch2026_chained_scores.csv",
+    use_chaining: bool = True,
+    model_mode: str = "blend",
+    q_model_mode: str | None = None,
+    s_model_mode: str | None = None,
+    clip: float = 1e-4,
+    n_folds: int = 5,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Train the chained log-loss pipeline and write a probability submission."""
 
     train, sample, train_frame, sample_frame, stage1_features, stage2_features = _prepare_chained_frames(data_dir)
-    folds = make_subject_hole_folds(train_frame, n_folds=5)
+    folds = make_subject_hole_folds(train_frame, n_folds=n_folds)
     if not folds:
         raise ValueError("No subject-hole CV folds were created.")
+    q_mode = q_model_mode or model_mode
+    s_mode = s_model_mode or model_mode
 
     scores: list[dict[str, float | str]] = []
     predictions = pd.DataFrame(index=sample_frame.index)
@@ -284,6 +317,7 @@ def run_chained_logloss_pipeline(data_dir: Path, output_dir: Path) -> tuple[pd.D
                 train_frame[stage1_features].iloc[valid_idx],
                 sample_frame[stage1_features],
                 random_state=4200 + fold_id,
+                model_mode=s_mode,
             )
             oof_probability[valid_idx] = valid_probability
             test_probability += fold_test_probability / len(folds)
@@ -293,7 +327,7 @@ def run_chained_logloss_pipeline(data_dir: Path, output_dir: Path) -> tuple[pd.D
         predictions[target] = test_probability
         scores.append({"target": target, "stage": "S", "model_blend": model_blend, "logloss": float(np.mean(target_losses))})
 
-    stage2_extended_features = stage2_features + [f"predicted_{target}_prob" for target in s_targets]
+    stage2_extended_features = stage2_features + [f"predicted_{target}_prob" for target in s_targets] if use_chaining else stage2_features
     for target in q_targets:
         y = train_frame[target].fillna(0).astype(int).to_numpy()
         test_probability = np.zeros(len(sample_frame), dtype=float)
@@ -306,6 +340,7 @@ def run_chained_logloss_pipeline(data_dir: Path, output_dir: Path) -> tuple[pd.D
                 train_frame[stage2_extended_features].iloc[valid_idx],
                 sample_frame[stage2_extended_features],
                 random_state=5200 + fold_id,
+                model_mode=q_mode,
             )
             test_probability += fold_test_probability / len(folds)
             target_losses.append(log_loss(y[valid_idx], np.clip(valid_probability, 1e-4, 1.0 - 1e-4)))
@@ -314,10 +349,56 @@ def run_chained_logloss_pipeline(data_dir: Path, output_dir: Path) -> tuple[pd.D
 
     submission = sample[KEY_COLUMNS].copy()
     for target in TARGET_COLUMNS:
-        submission[target] = predictions[target].clip(1e-4, 1.0 - 1e-4).to_numpy(dtype=float)
+        submission[target] = predictions[target].clip(clip, 1.0 - clip).to_numpy(dtype=float)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    submission.to_csv(output_dir / "ch2026_submission_chained.csv", index=False)
+    submission.to_csv(output_dir / output_name, index=False)
     score_frame = pd.DataFrame(scores)
-    score_frame.to_csv(output_dir / "ch2026_chained_scores.csv", index=False)
+    score_frame.to_csv(output_dir / score_name, index=False)
     return submission, score_frame
+
+
+def run_xgb_variant_experiments(data_dir: Path, output_dir: Path) -> pd.DataFrame:
+    """Generate XGBoost-heavy chained variants and write their CV scores."""
+
+    variants = [
+        {
+            "name": "xgb_only",
+            "kwargs": {"model_mode": "xgb"},
+        },
+        {
+            "name": "lgbm_xgb_50_50",
+            "kwargs": {"model_mode": "lgbm_xgb_50_50"},
+        },
+        {
+            "name": "lgbm_xgb_30_70",
+            "kwargs": {"model_mode": "lgbm_xgb_30_70"},
+        },
+        {
+            "name": "q_xgb_s_blend",
+            "kwargs": {"s_model_mode": "blend", "q_model_mode": "xgb"},
+        },
+        {
+            "name": "q_70_s_blend",
+            "kwargs": {"s_model_mode": "blend", "q_model_mode": "lgbm_xgb_30_70"},
+        },
+        {
+            "name": "hole7_blend",
+            "kwargs": {"model_mode": "blend", "n_folds": 7},
+        },
+    ]
+    score_frames = []
+    for variant in variants:
+        name = str(variant["name"])
+        _, scores = run_chained_logloss_pipeline(
+            data_dir,
+            output_dir,
+            output_name=f"ch2026_submission_{name}.csv",
+            score_name=f"ch2026_{name}_scores.csv",
+            **variant["kwargs"],
+        )
+        scores["variant"] = name
+        score_frames.append(scores)
+    summary = pd.concat(score_frames, ignore_index=True)
+    summary.to_csv(output_dir / "ch2026_xgb_variant_scores.csv", index=False)
+    return summary

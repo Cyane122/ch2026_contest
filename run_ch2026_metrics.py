@@ -21,7 +21,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train CH2026 metrics baseline and create a submission CSV.")
     parser.add_argument("--data-dir", type=Path, default=Path("data"), help="Directory containing CH2026 data files.")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs"), help="Directory for generated CSV outputs.")
-    parser.add_argument("--metric", choices=["f1", "accuracy"], default="f1", help="Selection metric for final target strategies.")
+    parser.add_argument(
+        "--metric",
+        choices=["f1", "accuracy", "xgb-variants", "lstm"],
+        default="f1",
+        help="Selection metric or experiment family for final target strategies.",
+    )
     parser.add_argument("--install-check", action="store_true", help="Print optional dependency availability before running.")
     args = parser.parse_args()
     run_pipeline(args.data_dir, args.output_dir, metric=args.metric, install_check=args.install_check)
