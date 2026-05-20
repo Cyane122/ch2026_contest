@@ -7,7 +7,7 @@
 #   - run_pipeline(data_dir: Path, output_dir: Path, metric: str = "f1", install_check: bool = False) -> None : Train models and write outputs.
 #     Supported metrics: f1, accuracy, xgb-variants, lstm, lstm-targetwise, sequence-variants,
 #                        registry-ensembles, oof-ensemble, anchor-stack, conservative-blend,
-#                        feature-diagnosis, raw-cnn
+#                        feature-diagnosis, raw-cnn, new-models
 # ================================
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from src.ch2026_features import KEY_COLUMNS, TARGET_COLUMNS, build_sensor_featur
 from src.ch2026_experiments import dependency_status, run_f1_experiments
 from src.ch2026_logloss import export_registry_probability_candidates, run_logloss_experiments
 from src.ch2026_modeling import cross_validate, select_submission_predictions
+from src.ch2026_new_models import run_new_model_experiments
 from src.ch2026_sequence import run_lstm_sequence_pipeline, run_sequence_variant_experiments, write_lstm_targetwise_blend
 
 
@@ -131,6 +132,13 @@ def run_pipeline(data_dir: Path, output_dir: Path, metric: str = "f1", install_c
         print("\nTargetwise registry/sequence/tree selection")
         print(selected.to_string(index=False))
         print(f"Wrote {output_dir / 'ch2026_submission_lstm_targetwise.csv'}")
+        return
+
+    if metric == "new-models":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        manifest = run_new_model_experiments(train_frame, train_x, sample_frame, sample_x, output_dir)
+        print(manifest.groupby("source")["mean_logloss"].mean().sort_values().to_string())
+        print(f"Wrote new model submissions to {output_dir}/")
         return
 
     if metric == "oof-ensemble":

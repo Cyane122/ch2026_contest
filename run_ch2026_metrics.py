@@ -36,6 +36,7 @@ def main() -> None:
             "conservative-blend",
             "feature-diagnosis",
             "raw-cnn",
+            "new-models",
         ],
         default="f1",
         help="Selection metric or experiment family for final target strategies.",
