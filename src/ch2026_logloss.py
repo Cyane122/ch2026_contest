@@ -5,14 +5,18 @@
 #
 # Functions
 #   - run_logloss_experiments(train_frame: pd.DataFrame, train_x: pd.DataFrame, sample_frame: pd.DataFrame, sample_x: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame] : Select calibrated probabilities and diagnostics.
+#   - export_registry_probability_candidates(train_frame: pd.DataFrame, train_x: pd.DataFrame, sample_frame: pd.DataFrame, sample_x: pd.DataFrame, output_dir: Path) -> pd.DataFrame : Write registry candidate submissions and score manifest.
 # ================================
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-from src.ch2026_features import TARGET_COLUMNS
+from src.ch2026_features import KEY_COLUMNS, TARGET_COLUMNS
 from src.ch2026_experiments import _final_probability_for_strategy, _rolling_masks, _score_target
 from src.ch2026_modeling import _fit_predict_subject_strategy_tuned
 
@@ -96,6 +100,20 @@ def _score_logloss_candidates(train_frame: pd.DataFrame, train_x: pd.DataFrame) 
 def _select_logloss_scores(scores: pd.DataFrame) -> pd.DataFrame:
     """Select the lowest mean log loss per target across temporal folds."""
 
+    grouped = _summarize_logloss_scores(scores)
+    return (
+        grouped.sort_values(
+            ["target", "selection_score", "mean_logloss", "max_logloss"],
+            ascending=[True, True, True, True],
+        )
+        .groupby("target", as_index=False)
+        .first()
+    )
+
+
+def _summarize_logloss_scores(scores: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate log-loss candidates across temporal folds."""
+
     grouped = (
         scores.groupby(["target", "submission_strategy", "model_name", "shrink_alpha"], as_index=False)
         .agg(
@@ -107,14 +125,106 @@ def _select_logloss_scores(scores: pd.DataFrame) -> pd.DataFrame:
         .fillna({"std_logloss": 0.0})
     )
     grouped["selection_score"] = grouped["mean_logloss"] + 0.25 * grouped["std_logloss"] + 0.05 * grouped["max_logloss"]
-    return (
-        grouped.sort_values(
-            ["target", "selection_score", "mean_logloss", "max_logloss"],
-            ascending=[True, True, True, True],
+    return grouped
+
+
+def _safe_source_name(strategy: str) -> str:
+    """Convert a strategy name into a filesystem-safe source id."""
+
+    return re.sub(r"[^A-Za-z0-9_]+", "_", strategy).strip("_")
+
+
+def _sample_probability_for_strategy(
+    strategy: str,
+    model_name: str,
+    target: str,
+    train_frame: pd.DataFrame,
+    train_x: pd.DataFrame,
+    sample_frame: pd.DataFrame,
+    sample_x: pd.DataFrame,
+    rule_predictions: pd.DataFrame,
+) -> np.ndarray:
+    """Fit one final candidate and return sample probabilities."""
+
+    prior = float(train_frame[target].mean())
+    if strategy == "history_blend":
+        return _history_probability(sample_frame, target, prior)
+    return _final_probability_for_strategy(
+        strategy,
+        model_name,
+        target,
+        train_frame,
+        train_x,
+        sample_frame,
+        sample_x,
+        rule_predictions,
+    )
+
+
+def export_registry_probability_candidates(
+    train_frame: pd.DataFrame,
+    train_x: pd.DataFrame,
+    sample_frame: pd.DataFrame,
+    sample_x: pd.DataFrame,
+    output_dir: Path,
+) -> pd.DataFrame:
+    """Write registry candidate submissions and a target/source score manifest."""
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    scores = _score_logloss_candidates(train_frame, train_x)
+    scores.to_csv(output_dir / "ch2026_registry_logloss_scores.csv", index=False)
+    summarized = _summarize_logloss_scores(scores)
+    selected_by_source = (
+        summarized.sort_values(
+            ["target", "submission_strategy", "selection_score", "mean_logloss", "max_logloss"],
+            ascending=[True, True, True, True, True],
         )
-        .groupby("target", as_index=False)
+        .groupby(["target", "submission_strategy"], as_index=False)
         .first()
     )
+
+    rule_predictions = _fit_predict_subject_strategy_tuned(train_frame, sample_frame)
+    manifest_rows: list[dict[str, float | str]] = []
+    for strategy, source_rows in selected_by_source.groupby("submission_strategy", sort=True):
+        source = _safe_source_name(str(strategy))
+        submission_name = f"ch2026_submission_registry_{source}.csv"
+        submission = sample_frame[KEY_COLUMNS].copy()
+        selected_targets = set(source_rows["target"])
+        for target in TARGET_COLUMNS:
+            if target not in selected_targets:
+                submission[target] = float(train_frame[target].mean())
+                continue
+            row = source_rows.loc[source_rows["target"] == target].iloc[0]
+            probability = _sample_probability_for_strategy(
+                str(row["submission_strategy"]),
+                str(row["model_name"]),
+                target,
+                train_frame,
+                train_x,
+                sample_frame,
+                sample_x,
+                rule_predictions,
+            )
+            alpha = float(row["shrink_alpha"])
+            prior = float(train_frame[target].mean())
+            submission[target] = np.clip(prior + alpha * (np.asarray(probability, dtype=float) - prior), 1e-4, 1.0 - 1e-4)
+            manifest_rows.append(
+                {
+                    "target": target,
+                    "source": f"registry_{source}",
+                    "submission_path": submission_name,
+                    "mean_logloss": float(row["mean_logloss"]),
+                    "std_logloss": float(row["std_logloss"]),
+                    "max_logloss": float(row["max_logloss"]),
+                    "shrink_alpha": alpha,
+                    "selection_score": float(row["selection_score"]),
+                }
+            )
+        submission.to_csv(output_dir / submission_name, index=False)
+
+    manifest = pd.DataFrame(manifest_rows)
+    manifest.to_csv(output_dir / "ch2026_registry_candidate_scores.csv", index=False)
+    return manifest
 
 
 def run_logloss_experiments(

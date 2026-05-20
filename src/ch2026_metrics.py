@@ -5,6 +5,9 @@
 #
 # Functions
 #   - run_pipeline(data_dir: Path, output_dir: Path, metric: str = "f1", install_check: bool = False) -> None : Train models and write outputs.
+#     Supported metrics: f1, accuracy, xgb-variants, lstm, lstm-targetwise, sequence-variants,
+#                        registry-ensembles, oof-ensemble, anchor-stack, conservative-blend,
+#                        feature-diagnosis, raw-cnn
 # ================================
 
 from __future__ import annotations
@@ -13,13 +16,18 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.ch2026_anchor_stack import run_anchor_stack_pipeline
+from src.ch2026_conservative_blend import run_conservative_blend_pipeline
+from src.ch2026_feature_diagnosis import run_feature_diagnosis
+from src.ch2026_rawcnn import run_rawcnn_pipeline
 from src.ch2026_chained import run_chained_logloss_pipeline
 from src.ch2026_chained import run_xgb_variant_experiments
+from src.ch2026_ensemble import run_oof_ensemble_pipeline
 from src.ch2026_features import KEY_COLUMNS, TARGET_COLUMNS, build_sensor_features, make_model_frame, prepare_feature_matrices
 from src.ch2026_experiments import dependency_status, run_f1_experiments
-from src.ch2026_logloss import run_logloss_experiments
+from src.ch2026_logloss import export_registry_probability_candidates, run_logloss_experiments
 from src.ch2026_modeling import cross_validate, select_submission_predictions
-from src.ch2026_sequence import run_lstm_sequence_pipeline
+from src.ch2026_sequence import run_lstm_sequence_pipeline, run_sequence_variant_experiments, write_lstm_targetwise_blend
 
 
 def _write_submission(sample: pd.DataFrame, predictions: pd.DataFrame, path: Path, as_int: bool = True) -> pd.DataFrame:
@@ -62,9 +70,77 @@ def run_pipeline(data_dir: Path, output_dir: Path, metric: str = "f1", install_c
         print(f"Wrote {output_dir / 'ch2026_submission_lstm.csv'}")
         return
 
+    if metric == "sequence-variants":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        scores = run_sequence_variant_experiments(data_dir, output_dir)
+        print(scores.groupby("model_type")["mean_logloss"].mean().sort_values().to_string())
+        _, selected = write_lstm_targetwise_blend(output_dir)
+        print("\nTargetwise sequence/tree selection")
+        print(selected.to_string(index=False))
+        print(f"Wrote {output_dir / 'ch2026_submission_lstm_targetwise.csv'}")
+        return
+
+    if metric == "lstm-targetwise":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        submission_path = output_dir / "ch2026_submission_lstm.csv"
+        score_path = output_dir / "ch2026_sequence_scores.csv"
+        if not submission_path.exists() or not score_path.exists():
+            _, scores = run_lstm_sequence_pipeline(data_dir, output_dir)
+            print(scores.to_string(index=False))
+        _, selected = write_lstm_targetwise_blend(output_dir)
+        print(selected.to_string(index=False))
+        print(f"Wrote {output_dir / 'ch2026_submission_lstm_targetwise.csv'}")
+        return
+
+    if metric == "anchor-stack":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        _, scores = run_anchor_stack_pipeline(data_dir, output_dir)
+        print(scores.sort_values("logloss").head(25).to_string(index=False))
+        print(f"Wrote {output_dir / 'ch2026_submission_anchor_stack_targetwise.csv'}")
+        return
+
+    if metric == "conservative-blend":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        diagnostic = run_conservative_blend_pipeline(data_dir, output_dir)
+        print(diagnostic.to_string(index=False))
+        print(f"Wrote conservative blend submissions to {output_dir}/")
+        return
+
+    if metric == "feature-diagnosis":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        run_feature_diagnosis(output_dir)
+        print(f"Wrote {output_dir / 'ch2026_feature_diagnosis.csv'}")
+        return
+
+    if metric == "raw-cnn":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        _, scores = run_rawcnn_pipeline(data_dir, output_dir)
+        print(scores.to_string(index=False))
+        print(f"Wrote {output_dir / 'ch2026_submission_rawcnn.csv'}")
+        return
+
     sensor_features = build_sensor_features(items_dir)
     train_frame, sample_frame = make_model_frame(train, sample, sensor_features)
     train_x, sample_x = prepare_feature_matrices(train_frame, sample_frame)
+
+    if metric == "registry-ensembles":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        manifest = export_registry_probability_candidates(train_frame, train_x, sample_frame, sample_x, output_dir)
+        print(manifest.groupby("source")["mean_logloss"].mean().sort_values().head(20).to_string())
+        _, selected = write_lstm_targetwise_blend(output_dir)
+        print("\nTargetwise registry/sequence/tree selection")
+        print(selected.to_string(index=False))
+        print(f"Wrote {output_dir / 'ch2026_submission_lstm_targetwise.csv'}")
+        return
+
+    if metric == "oof-ensemble":
+        output_dir.mkdir(parents=True, exist_ok=True)
+        _, selection, scores = run_oof_ensemble_pipeline(data_dir, output_dir)
+        print(scores.groupby(["source", "fold_strategy"])["logloss"].mean().sort_values().head(20).to_string())
+        print("\nOOF weighted ensemble selection")
+        print(selection.to_string(index=False))
+        print(f"Wrote {output_dir / 'ch2026_submission_oof_ensemble.csv'}")
+        return
 
     cv_scores = cross_validate(train_frame, train_x)
     legacy_predictions, legacy_strategy_scores = select_submission_predictions(train_frame, train_x, sample_frame, sample_x, cv_scores)

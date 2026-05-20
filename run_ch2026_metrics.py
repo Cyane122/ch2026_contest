@@ -23,7 +23,20 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=Path("outputs"), help="Directory for generated CSV outputs.")
     parser.add_argument(
         "--metric",
-        choices=["f1", "accuracy", "xgb-variants", "lstm"],
+        choices=[
+            "f1",
+            "accuracy",
+            "xgb-variants",
+            "lstm",
+            "lstm-targetwise",
+            "sequence-variants",
+            "registry-ensembles",
+            "oof-ensemble",
+            "anchor-stack",
+            "conservative-blend",
+            "feature-diagnosis",
+            "raw-cnn",
+        ],
         default="f1",
         help="Selection metric or experiment family for final target strategies.",
     )
