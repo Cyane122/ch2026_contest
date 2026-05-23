@@ -1,0 +1,13 @@
+{
+  "model_family": "sklearn MLPClassifier tabular neural network",
+  "feature_count": 4671,
+  "split_average_log_loss": {
+    "interleaved_offset1": 0.5809913440098669,
+    "interleaved_offset2": 0.5957260018120286,
+    "subject_hole0": 0.6511557323443556,
+    "subject_hole1": 0.5568853527084524,
+    "subject_hole2": 0.6077821760034483,
+    "late7": 0.645521072679106
+  },
+  "submission_path": "C:\\Users\\KNova\\Documents\\ETRI\\submissions\\mlp_robust_ensemble_submission.csv"
+}

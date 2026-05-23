@@ -1,0 +1,13 @@
+table,rows,subjects,start,end,columns,memory_mb
+ch2025_mACStatus,939896,10,2024-06-03 12:57:00,2024-11-19 23:59:00,"subject_id, timestamp, m_charging",25.1
+ch2025_mActivity,961062,10,2024-06-03 12:57:00,2024-11-19 23:59:00,"subject_id, timestamp, m_activity",25.66
+ch2025_mAmbience,476577,10,2024-06-03 13:00:10,2024-11-19 23:58:10,"subject_id, timestamp, m_ambience",63.63
+ch2025_mBle,21830,10,2024-06-03 13:07:00,2024-11-19 21:27:00,"subject_id, timestamp, m_ble",2.91
+ch2025_mGps,800611,10,2024-06-03 12:57:00,2024-11-19 23:59:00,"subject_id, timestamp, m_gps",106.89
+ch2025_mLight,96258,10,2024-06-03 12:57:00,2024-11-19 23:57:00,"subject_id, timestamp, m_light",2.57
+ch2025_mScreenStatus,939653,10,2024-06-03 12:57:00,2024-11-19 23:59:00,"subject_id, timestamp, m_screen_use",25.09
+ch2025_mUsageStats,45197,10,2024-06-09 11:00:00,2024-11-19 22:10:00,"subject_id, timestamp, m_usage_stats",6.03
+ch2025_mWifi,76336,10,2024-06-03 12:57:00,2024-11-19 23:57:00,"subject_id, timestamp, m_wifi",10.19
+ch2025_wHr,382918,10,2024-06-03 14:28:00,2024-11-19 15:37:00,"subject_id, timestamp, heart_rate",51.13
+ch2025_wLight,633741,10,2024-06-03 14:28:00,2024-11-19 23:59:00,"subject_id, timestamp, w_light",16.92
+ch2025_wPedo,748100,10,2024-06-03 14:15:00,2024-11-19 23:59:00,"subject_id, timestamp, step, step_frequency, running_step, walking_step, distance, speed, burned_calories",54.22

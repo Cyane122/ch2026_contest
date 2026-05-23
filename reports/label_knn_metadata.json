@@ -1,0 +1,89 @@
+{
+  "selected": [
+    {
+      "target": "Q1",
+      "mean_logloss": 0.6721086955198342,
+      "std_logloss": 0.03174037673433597,
+      "max_logloss": 0.7157406069492106,
+      "selection_score": 0.7158308200508787,
+      "method": "inverse",
+      "tau": 14.0,
+      "power": 1.0,
+      "max_days": NaN,
+      "shrink": 0.12
+    },
+    {
+      "target": "Q2",
+      "mean_logloss": 0.6437935903975611,
+      "std_logloss": 0.06956038524211998,
+      "max_logloss": 0.7322553972775251,
+      "selection_score": 0.6977964565719674,
+      "method": "inverse",
+      "tau": 14.0,
+      "power": 1.0,
+      "max_days": NaN,
+      "shrink": 0.12
+    },
+    {
+      "target": "Q3",
+      "mean_logloss": 0.6604991954497272,
+      "std_logloss": 0.03833493313460641,
+      "max_logloss": 0.7112356821265793,
+      "selection_score": 0.7056447128397078,
+      "method": "inverse",
+      "tau": 14.0,
+      "power": 0.75,
+      "max_days": 56.0,
+      "shrink": 0.12
+    },
+    {
+      "target": "S1",
+      "mean_logloss": 0.6611477559708285,
+      "std_logloss": 0.1413564364536619,
+      "max_logloss": 0.8606791277782245,
+      "selection_score": 0.7395208214731552,
+      "method": "gaussian",
+      "tau": 28.0,
+      "power": 1.0,
+      "max_days": NaN,
+      "shrink": 0.12
+    },
+    {
+      "target": "S2",
+      "mean_logloss": 0.5955665672507985,
+      "std_logloss": 0.07018816983321036,
+      "max_logloss": 0.6948026766499484,
+      "selection_score": 0.6478537435415985,
+      "method": "inverse",
+      "tau": 14.0,
+      "power": 0.75,
+      "max_days": NaN,
+      "shrink": 0.12
+    },
+    {
+      "target": "S3",
+      "mean_logloss": 0.5868210988423351,
+      "std_logloss": 0.0897205364766804,
+      "max_logloss": 0.7134765577511313,
+      "selection_score": 0.6449250608490618,
+      "method": "exp",
+      "tau": 28.0,
+      "power": 1.0,
+      "max_days": NaN,
+      "shrink": 0.12
+    },
+    {
+      "target": "S4",
+      "mean_logloss": 0.6409138707945067,
+      "std_logloss": 0.0130845621281379,
+      "max_logloss": 0.6594001182731376,
+      "selection_score": 0.677155017240198,
+      "method": "gaussian",
+      "tau": 28.0,
+      "power": 1.0,
+      "max_days": 56.0,
+      "shrink": 0.12
+    }
+  ],
+  "submission": "C:\\Users\\KNova\\Documents\\ETRI\\submissions\\label_knn_submission.csv"
+}

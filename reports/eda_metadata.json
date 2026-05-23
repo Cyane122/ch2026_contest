@@ -1,0 +1,16 @@
+{
+  "targets": [
+    "Q1",
+    "Q2",
+    "Q3",
+    "S1",
+    "S2",
+    "S3",
+    "S4"
+  ],
+  "train_rows": 450,
+  "sample_rows": 250,
+  "average_global_prior_log_loss": 0.6810188217525119,
+  "average_subject_prior_log_loss": 0.6802306233845661,
+  "best_simple_floor_log_loss": 0.6620649883545608
+}

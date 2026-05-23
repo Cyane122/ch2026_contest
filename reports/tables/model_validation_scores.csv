@@ -1,0 +1,9 @@
+target,model,alpha,valid_log_loss,valid_model_log_loss,split,valid_rows
+Q1,extra_trees+neighbor_prior,0.65,0.6249357604893532,0.6582201152217143,interleaved_offset1,131
+Q2,extra_trees+label_knn_prior,0.7000000000000001,0.6033688417741806,0.6105656055826898,interleaved_offset1,131
+Q3,extra_trees+neighbor_prior,0.525,0.5782732779361521,0.6320162632933138,interleaved_offset1,131
+S1,logreg_l2+subject_prior,0.17500000000000002,0.52771646051332,1.262687091698891,interleaved_offset1,131
+S2,extra_trees+subject_prior,0.2,0.5303609572907446,0.5581351728250947,interleaved_offset1,131
+S3,subject_prior,0.0,0.5186084510149951,,interleaved_offset1,131
+S4,hist_gbdt+label_knn_prior,0.55,0.6282919681460735,0.647372015589981,interleaved_offset1,131
+average,selected,,0.5730793881664028,0.7281660440352807,interleaved_offset1,131

@@ -1,0 +1,10 @@
+file,public_log_loss,note
+baseline_submission.csv,0.6339,primary interleaved candidate
+robust_ensemble_submission.csv,0.6240,0.45/0.45/0.10 split ensemble; best observed so far
+friend_semantic_anchor_blend_10.csv,0.6171,external semantic anchor blend from Cyane122/ch2026_contest
+blend_friend80_v2robust10_v3robust10_submission.csv,0.6090,best observed so far; friend-heavy blend with v2/v3 robust
+blend_friend90_v3robust10_submission.csv,0.6126,too friend-heavy relative to v3
+v3_semantic_robust_ensemble_submission.csv,0.6091,v3 semantic robust ensemble; nearly tied with best
+blend_friend40_v3robust30_v4knnrobust30_submission.csv,0.5992,friend 40 + v3/v4 equal blend; first below 0.6
+blend_friend30_v3robust35_v4knnrobust35_submission.csv,0.5991,friend 30 + v3/v4 equal blend; current best public LB
+ensemble_v3robust50_v4knnrobust50_submission.csv,0.6049,no friend; useful anchor showing friend 30-40 helps

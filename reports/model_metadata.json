@@ -1,0 +1,16 @@
+{
+  "feature_count": 4671,
+  "primary_validation_split": "interleaved_offset1",
+  "validation_average_log_loss": 0.5730793881664028,
+  "split_average_log_loss": {
+    "interleaved_offset1": 0.5730793881664028,
+    "interleaved_offset2": 0.5831704244700912,
+    "subject_hole0": 0.6220263417162125,
+    "subject_hole1": 0.5668816990505497,
+    "subject_hole2": 0.5951561750761681,
+    "late7": 0.6108434925840542
+  },
+  "submission_path": "C:\\Users\\KNova\\Documents\\ETRI\\submissions\\baseline_submission.csv",
+  "primary_submission_path": "C:\\Users\\KNova\\Documents\\ETRI\\submissions\\primary_interleaved_submission.csv",
+  "robust_ensemble_submission_path": "C:\\Users\\KNova\\Documents\\ETRI\\submissions\\robust_ensemble_submission.csv"
+}
